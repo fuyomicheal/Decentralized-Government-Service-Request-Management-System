@@ -1,30 +1,58 @@
+;; Department Routing Contract
+;; Directs requests to appropriate agencies
 
-;; title: department-routing
-;; version:
-;; summary:
-;; description:
+(define-data-var admin principal tx-sender)
 
-;; traits
-;;
+;; Map to store departments and their service types
+(define-map departments principal
+  {
+    name: (string-ascii 64),
+    service-types: (list 10 (string-ascii 64))
+  }
+)
 
-;; token definitions
-;;
+;; Map to store request assignments
+(define-map request-assignments uint principal)
 
-;; constants
-;;
+;; Public function to register a department
+(define-public (register-department
+                (department principal)
+                (name (string-ascii 64))
+                (service-types (list 10 (string-ascii 64))))
+  (begin
+    (asserts! (is-eq tx-sender (var-get admin)) (err u403))
+    (ok (map-set departments department
+      {
+        name: name,
+        service-types: service-types
+      }
+    ))
+  )
+)
 
-;; data vars
-;;
+;; Public function to assign a request to a department
+(define-public (assign-request (request-id uint) (department principal))
+  (begin
+    (asserts! (is-eq tx-sender (var-get admin)) (err u403))
+    (asserts! (is-some (map-get? departments department)) (err u404))
+    (ok (map-set request-assignments request-id department))
+  )
+)
 
-;; data maps
-;;
+;; Read-only function to get the department assigned to a request
+(define-read-only (get-assigned-department (request-id uint))
+  (map-get? request-assignments request-id)
+)
 
-;; public functions
-;;
+;; Read-only function to get department details
+(define-read-only (get-department-details (department principal))
+  (map-get? departments department)
+)
 
-;; read only functions
-;;
-
-;; private functions
-;;
-
+;; Function to transfer admin rights
+(define-public (transfer-admin (new-admin principal))
+  (begin
+    (asserts! (is-eq tx-sender (var-get admin)) (err u403))
+    (ok (var-set admin new-admin))
+  )
+)
